@@ -77,3 +77,8 @@ multiplier les tableaux de bord orphelins. Le dashboard reste **provisionné**
 - [ ] Les seuils PSI sont colorés (vert/orange/rouge).
 - [ ] `docker compose up` charge le dashboard sans clic.
 - [ ] Je distingue métrique offline (PSI poussé) et live (proba M5).
+
+> 💡 **Récap** : on **étend** le dashboard M5 (pas un nouveau), on **provisionne**
+> le JSON (pas l'UI), et on distingue métrique **offline** (PSI poussé en gauge) de
+> métrique **live** (proba exposée par le service `model`). Le réflexe pro : capitaliser
+> sur l'outillage en place plutôt que multiplier les tableaux de bord orphelins.
