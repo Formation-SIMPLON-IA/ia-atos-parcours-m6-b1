@@ -24,8 +24,9 @@ conception (ça, c'est M7-M8).
   observé**. Un modèle parfait suit la **diagonale**.
 - **Sur-confiance** : la courbe est sous la diagonale (annonce 0.9 mais 60 % de
   défauts réels). **Sous-confiance** : au-dessus.
-- **ECE (Expected Calibration Error)** : moyenne pondérée des écarts |confiance −
-  observé| sur les bins. Plus bas = mieux calibré (0 = parfait).
+- **ECE (Expected Calibration Error)** ⭐ *bonus — le brief attend le reliability
+  diagram* : moyenne pondérée des écarts |confiance − observé| sur les bins.
+  Plus bas = mieux calibré (0 = parfait).
 - **En exploitation** : comparer la calibration **début vs fin** de période
   révèle si la confiance a **dérivé** dans le temps.
 - **Lien avec le drift** : data drift ⇒ souvent calibration dégradée (les
@@ -50,7 +51,7 @@ print("ECE :", round(ece(proba, y), 4))   # ex. 0.05 = bien calibré
 
 Avec `predictions_log.csv` :
 1. Tracez le reliability diagram pour les semaines 1-4 et 9-12 (deux courbes).
-2. Calculez l'ECE pour chaque période.
+2. ⭐ Bonus : calculez l'ECE pour chaque période.
 3. La confiance a-t-elle dérivé ? Dans quel sens (sur/sous-confiance) ?
 
 ## Pièges fréquents
@@ -76,7 +77,8 @@ Avec `predictions_log.csv` :
 ## Vérification (checklist apprenant)
 
 - [ ] Je trace un reliability diagram (confiance vs observé).
-- [ ] Je calcule l'ECE et je sais lire sur/sous-confiance.
+- [ ] Je sais lire sur/sous-confiance sur le reliability diagram.
+- [ ] ⭐ Bonus : je calcule l'ECE.
 - [ ] Je compare **deux périodes** pour voir la dérive de calibration.
 - [ ] Je ne confonds pas calibration (exploitation) et seuil de rejet (conception).
 - [ ] Je relie la calibration au diagnostic de drift.

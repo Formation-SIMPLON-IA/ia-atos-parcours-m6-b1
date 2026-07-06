@@ -20,7 +20,7 @@ Les **données sont fournies** dans `data/` : `reference_set.csv` (baseline),
 | # | À faire | Fichier | Mini-cours |
 |---|---|---|---|
 | 1 | Détection PSI / KS / Chi² | `src/drift_detection.py` | `01` |
-| 2 | Calibration (reliability, ECE) | `src/calibration.py` | `03` |
+| 2 | Calibration (reliability diagram ; ECE en bonus ⭐) | `src/calibration.py` | `03` |
 | 3 | Analyse complète | `notebooks/M6-B1_template.ipynb` | `01`,`02`,`03` |
 | 4 | Diagnostic data vs concept drift | `diagnostic.md` | `02` |
 | 5 | Note de recommandation | `note_recommandation_TEMPLATE.md` | `04` |
