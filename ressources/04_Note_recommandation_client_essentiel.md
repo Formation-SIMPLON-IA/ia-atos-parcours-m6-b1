@@ -25,7 +25,10 @@ décision métier.
   baisse un peu ».
 - **Trancher** : proposer **une** action principale, pas un menu d'options.
 - **Proportionner** : la remédiation suit le diagnostic. Réentraîner coûte cher
-  → ne le proposer que si justifié ; sinon surveiller ou ajuster.
+  → ne le proposer que si justifié ; sinon surveiller ou ajuster. Le type de
+  drift **oriente** l'action, il ne la dicte pas : selon le contexte, la bonne
+  réponse peut être surveiller, corriger une donnée, recalibrer, réentraîner,
+  changer la fréquence de monitoring, rollback ou revoir les features.
 - **Langage métier** : pas de jargon non défini. « calibration dégradée » se
   traduit « les probabilités annoncées ne sont plus fiables ».
 
@@ -36,8 +39,10 @@ décision métier.
 F1 macro 0.61 → 0.55 en 3 mois. `int_rate` a fortement dérivé (PSI 0.44).
 
 ## Diagnostic
-Data drift (pas concept drift : le modèle classe toujours bien, AUC stable
-~0.74) + calibration dégradée (ECE 0.24 → 0.32).
+Data drift : les entrées ont bougé alors que le modèle classe toujours aussi
+bien (AUC stable ~0.74) et que ses probabilités se dégradent (ECE 0.24 → 0.32).
+Un changement de la logique de risque (concept drift) est peu probable au vu de
+l'AUC ; il serait à réexaminer si celle-ci décrochait.
 
 ## Recommandation
 Réentraîner sur données récentes sous 3 semaines.

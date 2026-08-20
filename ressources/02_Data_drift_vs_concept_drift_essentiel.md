@@ -22,13 +22,35 @@ C'est le cœur du raisonnement attendu par Sophie Léger : un diagnostic
   risqués — mais « taux élevé ⇒ plus de risque » reste vrai.
 - **Concept drift** : les features peuvent être stables, mais la **relation
   features → cible** a changé (nouveau comportement, choc réglementaire).
-- **Le révélateur : l'AUC.** L'AUC mesure le **pouvoir de tri** indépendamment
-  du seuil. **AUC stable ⇒ le modèle ordonne toujours bien ⇒ relation préservée
-  ⇒ data drift.** AUC qui chute ⇒ la relation se casse ⇒ concept drift.
+- **L'indice principal : l'AUC.** L'AUC mesure le **pouvoir de tri**
+  indépendamment du seuil. Une AUC stable dit que le modèle **ordonne encore
+  bien sur la période observée** — c'est un signal **compatible** avec un data
+  drift. Elle ne **prouve** pas que la relation X → Y est intacte.
+- ⚠️ **Signal ≠ preuve.** Une AUC qui baisse n'établit pas non plus un concept
+  drift : changement de population, de prévalence, qualité des données, bug
+  ETL, calibration — plusieurs causes produisent le même symptôme. Le concept
+  drift est une **hypothèse à tester**, pas une conclusion automatique.
 - **Triangulation** : croiser (1) dérive des features (PSI/KS/Chi²), (2)
   stabilité de l'AUC, (3) calibration, (4) temporalité (tendance vs saut).
-- **Conséquence** : data drift ⇒ réentraîner sur données récentes (recale la
-  calibration). Concept drift ⇒ réentraîner **en urgence** + investiguer la cause.
+  Le diagnostic naît du **faisceau**, jamais d'un indicateur isolé.
+- **Conséquence** : le type de drift **oriente** la remédiation, il ne la
+  détermine pas. Data drift ⇒ typiquement réentraîner sur données récentes
+  (recale la calibration). Concept drift ⇒ réentraîner **en urgence** +
+  investiguer la cause. D'autres actions restent possibles selon le contexte :
+  surveiller, corriger une donnée, recalibrer, rollback, revoir les features.
+
+### Matrice de diagnostic
+
+| Features | AUC | Interprétation |
+|---|---|---|
+| stables | stable | Pas de signal majeur |
+| **dérivent** | **stable** | **Data drift plausible** (cas Pyrenex) |
+| dérivent | en baisse | Data drift avec impact sur la performance — concept drift à investiguer |
+| stables | en baisse | Signal fort d'un changement de la relation X → Y |
+| dérivent | calibration dégradée | Data drift avec impact probabiliste probable |
+
+> **Aucune ligne ne constitue à elle seule une preuve définitive.** Elle oriente
+> l'investigation ; la preuve se construit en croisant les 4 axes ci-dessus.
 
 ## Exemple minimal qui tourne
 
@@ -37,10 +59,11 @@ from sklearn.metrics import roc_auc_score
 # proba & y sur deux périodes
 auc_debut = roc_auc_score(y_debut, proba_debut)
 auc_fin   = roc_auc_score(y_fin,   proba_fin)
-if abs(auc_debut - auc_fin) < 0.03:
-    print("AUC stable → relation préservée → piste data drift")
+delta = auc_fin - auc_debut
+if abs(delta) < 0.03:
+    print(f"AUC stable (Δ={delta:+.3f}) → compatible data drift ; à croiser PSI + calibration")
 else:
-    print("AUC en baisse → piste concept drift")
+    print(f"AUC dégradée (Δ={delta:+.3f}) → investiguer : concept drift ? qualité ? population ?")
 ```
 
 ## Exercice guidé
@@ -48,22 +71,45 @@ else:
 Avec `predictions_log.csv` (colonnes `proba_default`, `true_label`, `timestamp`) :
 1. Calculez l'AUC sur les semaines 1-4 puis 9-12.
 2. Comparez à la dérive des features (mini-cours 01).
-3. Tranchez : data ou concept drift ? (Attendu : features dérivent + AUC stable
-   → **data drift**.)
+3. Remplissez la fiche de diagnostic ci-dessous, puis **tranchez** :
+
+```text
+Features qui dérivent : ......... (PSI / p-value à l'appui)
+AUC début : .....   AUC fin : .....   ΔAUC : .....
+Calibration début → fin : .........   (cf. mini-cours 03)
+Temporalité : [ ] tendance progressive   [ ] rupture brutale
+
+Diagnostic retenu (cocher) :
+[ ] pas de signal significatif
+[ ] data drift plausible
+[ ] impact sur la calibration
+[ ] concept drift à investiguer
+[ ] problème de qualité / ETL à investiguer
+
+Preuves qui soutiennent ce diagnostic :
+.........
+Ce qui manquerait pour être certain :
+.........
+```
+
+> Attendu sur ce jeu : features qui dérivent + AUC stable → **data drift
+> plausible**. Le verdict compte, mais **le faisceau de preuves compte
+> autant** : c'est lui qui est évalué.
 
 ## Pièges fréquents
 
 | Piège | Conséquence |
 |---|---|
 | Conclure concept drift parce que le F1 baisse | Faux : le F1 dépend du seuil, regarder l'AUC |
+| Traiter l'AUC comme une preuve à elle seule | Diagnostic non défendable devant le client |
 | Oublier la temporalité | On confond une tendance avec un saut (bug ETL) |
 | Diagnostic non chiffré | Note rejetée par le client |
 | Recommander un réentraînement sans type de drift | Remédiation non proportionnée |
 
 | Symptôme | Cause probable |
 |---|---|
-| F1 ↓ mais AUC stable | data drift + calibration dégradée (pas concept drift) |
-| AUC ↓ franchement | concept drift probable |
+| F1 ↓ mais AUC stable | data drift + calibration dégradée (concept drift peu probable) |
+| AUC ↓ franchement | changement de relation à investiguer — concept drift **parmi** les hypothèses (avec population, prévalence, qualité) |
 | Saut brutal d'une feature | suspecter un **bug ETL**, pas une dérive « naturelle » |
 
 ## Pour aller plus loin
@@ -74,7 +120,11 @@ Avec `predictions_log.csv` (colonnes `proba_default`, `true_label`, `timestamp`)
 ## Vérification (checklist apprenant)
 
 - [ ] Je sais définir data drift vs concept drift.
-- [ ] J'utilise l'**AUC** comme révélateur (stable ⇒ data drift).
-- [ ] Je triangule (features + AUC + calibration + temporalité).
-- [ ] Mon diagnostic est **tranché et chiffré**.
-- [ ] Je relie le type de drift à la remédiation proposée.
+- [ ] J'utilise l'**AUC** comme indice, pas comme preuve.
+- [ ] Je triangule (features + AUC + calibration + temporalité) avant de trancher.
+- [ ] Mon diagnostic est **tranché et chiffré**, et j'énonce ce qui manquerait
+      pour être certain.
+- [ ] Je relie le type de drift à la remédiation proposée, en la proportionnant.
+
+> 💡 **À retenir pour tout M6** : un **signal** statistique n'est pas encore un
+> **diagnostic**, et un diagnostic n'est pas encore une **décision**.

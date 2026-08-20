@@ -21,16 +21,44 @@ conception (ça, c'est M7-M8).
 
 - **Reliability diagram** : on découpe les probabilités prédites en bins, et pour
   chaque bin on compare la **confiance moyenne** (proba prédite) au **taux réel
-  observé**. Un modèle parfait suit la **diagonale**.
+  observé**. Convention d'axes — à respecter, sinon la lecture s'inverse :
+  **axe X = probabilité moyenne prédite**, **axe Y = fréquence réellement
+  observée**. Un modèle parfait suit la **diagonale**.
 - **Sur-confiance** : la courbe est sous la diagonale (annonce 0.9 mais 60 % de
   défauts réels). **Sous-confiance** : au-dessus.
 - **ECE (Expected Calibration Error)** ⭐ *bonus — le brief attend le reliability
   diagram* : moyenne pondérée des écarts |confiance − observé| sur les bins.
-  Plus bas = mieux calibré (0 = parfait).
+  Plus bas = mieux calibré (0 = parfait). ⚠️ **Indicateur de synthèse dépendant
+  de la méthode** : nombre de bins, stratégie de binning (largeur fixe vs
+  quantiles), taille d'échantillon. Deux ECE ne se comparent que calculés **à
+  méthode identique** — et l'ECE ne dit pas **où** la calibration décroche : le
+  reliability diagram reste indispensable pour ça.
 - **En exploitation** : comparer la calibration **début vs fin** de période
   révèle si la confiance a **dérivé** dans le temps.
 - **Lien avec le drift** : data drift ⇒ souvent calibration dégradée (les
   entrées ont bougé) alors que l'AUC tient.
+
+### ⚠️ Contrainte MLOps : la calibration se mesure en différé
+
+Mesurer la calibration exige les **vraies cibles**. Or le label métier arrive
+**après** la prédiction :
+
+```text
+prédiction aujourd'hui → l'événement se réalise plus tard → label disponible → mesure possible
+```
+
+En crédit, un défaut peut mettre **des mois** à être constaté. Conséquences
+concrètes pour votre monitoring :
+
+- La surveillance de calibration est **structurellement retardée** — on mesure
+  toujours sur une période déjà ancienne, jamais sur la production du jour.
+- La dérive des **features** (PSI/KS), elle, est mesurable **immédiatement** :
+  c'est pourquoi elle sert de signal d'alerte précoce.
+- Un dashboard qui affiche la calibration doit donc indiquer **la fenêtre
+  couverte** et son décalage, sinon on croit surveiller le présent.
+
+C'est aussi ce qui rend le réentraînement délicat : au moment où la dégradation
+est prouvée, elle dure depuis un moment.
 
 ## Exemple minimal qui tourne
 
@@ -60,6 +88,8 @@ Avec `predictions_log.csv` :
 |---|---|
 | Confondre calibration et seuil de rejet | Mélange exploitation (M6) et conception (M7-M8) |
 | Trop de bins sur peu de données | Courbe bruitée, ECE instable |
+| Comparer deux ECE calculés avec des binnings différents | Comparaison invalide |
+| Oublier le décalage des labels | On croit surveiller le présent, on mesure le passé |
 | Lire la calibration sur une seule période | On rate la **dérive** de calibration |
 | Croire qu'une bonne AUC ⇒ bonne calibration | Faux : ce sont deux propriétés distinctes |
 
@@ -68,6 +98,7 @@ Avec `predictions_log.csv` :
 | Courbe sous la diagonale | sur-confiance (proba trop hautes) |
 | ECE qui monte dans le temps | calibration qui dérive (souvent data drift) |
 | ECE instable | trop de bins / trop peu de points |
+| Calibration « impossible à calculer » sur les dernières semaines | labels pas encore disponibles — normal, documenter la fenêtre |
 
 ## Pour aller plus loin
 
@@ -76,8 +107,10 @@ Avec `predictions_log.csv` :
 
 ## Vérification (checklist apprenant)
 
-- [ ] Je trace un reliability diagram (confiance vs observé).
+- [ ] Je trace un reliability diagram (X = proba prédite, Y = fréquence observée).
 - [ ] Je sais lire sur/sous-confiance sur le reliability diagram.
+- [ ] Je sais que la calibration exige les **vrais labels**, donc qu'elle est
+      mesurée **en différé**, et j'indique la fenêtre couverte.
 - [ ] ⭐ Bonus : je calcule l'ECE.
 - [ ] Je compare **deux périodes** pour voir la dérive de calibration.
 - [ ] Je ne confonds pas calibration (exploitation) et seuil de rejet (conception).

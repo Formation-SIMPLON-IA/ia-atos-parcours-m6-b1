@@ -22,16 +22,31 @@ comprendre le calcul d'abord.
 
 - **PSI (Population Stability Index)** : compare la répartition par bins (déciles
   de la référence) entre référence et prod. `PSI = Σ (p_cur - p_ref)·ln(p_cur/p_ref)`.
-  Seuils standards : **< 0.1 stable, 0.1–0.25 suspect, > 0.25 dérive**.
+  **Repères conventionnels** : **< 0.10 signal faible, 0.10–0.25 signal à
+  investiguer, > 0.25 signal fort**. ⚠️ Ce sont des **heuristiques de place**,
+  pas des lois statistiques : PSI 0.24 et PSI 0.26 ne sont pas deux mondes
+  différents. À contextualiser selon la feature et l'enjeu métier.
 - **KS (Kolmogorov-Smirnov)** : test sur 2 échantillons numériques. p < 0.05 ⇒
-  distributions différentes. **Très sensible** sur gros échantillons (peut
-  flagger des écarts minimes — regarder aussi l'ampleur).
+  il y a assez d'évidence contre l'égalité des distributions. **Très sensible**
+  sur gros échantillons (peut flagger des écarts minimes).
+- ⚠️ **Deux questions distinctes** — ne jamais les confondre :
+
+  | Question | Outil |
+  |---|---|
+  | L'écart est-il **statistiquement détectable** ? | p-value (KS, Chi²) |
+  | L'écart est-il **important** ? | ampleur : PSI, écart de moyennes, analyse métier |
+
+  Sur 50 000 lignes, une p-value ≈ 0 peut accompagner un écart négligeable.
 - **Chi²** : sur les **catégorielles**, compare les fréquences de modalités via
-  une table de contingence. p < 0.05 ⇒ répartition différente.
+  une table de contingence. p < 0.05 ⇒ répartition différente. ⚠️ Le test suppose
+  des **effectifs attendus suffisants** par case (repère courant : ≥ 5). Avec des
+  modalités très rares, le résultat devient peu fiable — regrouper les modalités
+  marginales dans un « autres » avant de tester.
 - **Croisement** : PSI et KS peuvent **diverger** (KS plus sensible). On
   conclut sur l'ensemble des signaux, pas une seule métrique.
 - **Lissage anti-zéro** : un bin vide donne `ln(0)` / division par 0 → ajouter
-  un ε (1e-6) aux proportions.
+  un ε (1e-6) aux proportions, **puis renormaliser** pour que chaque
+  distribution somme à 1 (sinon on ne compare plus des proportions).
 
 ## Exemple minimal qui tourne
 
@@ -40,11 +55,16 @@ comprendre le calcul d'abord.
 import numpy as np
 from scipy.stats import ks_2samp
 
-def psi(ref, cur, n_bins=10):
+def psi(ref, cur, n_bins=10, eps=1e-6):
+    # bins issus de la RÉFÉRENCE (sinon PSI non comparable)
     edges = np.unique(np.quantile(ref, np.linspace(0, 1, n_bins + 1)))
     edges[0], edges[-1] = -np.inf, np.inf
-    p_ref = np.histogram(ref, edges)[0] / len(ref) + 1e-6
-    p_cur = np.histogram(cur, edges)[0] / len(cur) + 1e-6
+    p_ref = np.histogram(ref, edges)[0] / len(ref)
+    p_cur = np.histogram(cur, edges)[0] / len(cur)
+    # 1) lisser pour éviter ln(0) / division par 0 sur un bin vide
+    p_ref, p_cur = p_ref + eps, p_cur + eps
+    # 2) renormaliser : on doit comparer deux distributions qui somment à 1
+    p_ref, p_cur = p_ref / p_ref.sum(), p_cur / p_cur.sum()
     return float(np.sum((p_cur - p_ref) * np.log(p_cur / p_ref)))
 
 import pandas as pd
@@ -59,17 +79,32 @@ print("KS p:", ks_2samp(ref, cur).pvalue)          # ~0 → différent
 Sur `reference_set.csv` vs `prod_3months.csv` :
 1. Calculez le PSI **et** la p-value KS pour `int_rate` et `loan_amnt`.
 2. Calculez le Chi² pour `grade`.
-3. Que concluez-vous ? (Indice attendu : `int_rate` dérive fortement, `grade`
-   aussi ; `loan_amnt` est stable.)
+3. Remplissez **un tableau de synthèse**, une ligne par feature — le calcul et
+   l'interprétation sont deux colonnes distinctes :
+
+| Feature | Type | PSI | p-value | Verdict | Commentaire |
+|---|---|---:|---:|---|---|
+| `int_rate` | numérique | 0.44 | < 0.001 | dérive forte | signaux concordants |
+| `loan_amnt` | numérique | 0.04 | 0.18 | stable | pas de signal |
+| `grade` | catégorielle | — | < 0.001 | dérive | modalités redistribuées |
+
+4. **Puis seulement**, rédigez une synthèse globale en 2-3 lignes.
+
+> ⚠️ Un chiffre n'est pas un verdict, et un verdict n'est pas un diagnostic.
+> Le diagnostic (data vs concept drift) vient au mini-cours 02.
 
 ## Pièges fréquents
 
 | Piège | Conséquence |
 |---|---|
 | PSI sans lissage anti-zéro | `inf` / `NaN` dès qu'un bin est vide |
+| Lisser sans renormaliser | Les proportions ne somment plus à 1, PSI légèrement biaisé |
 | Conclure « dérive » sur la seule p-value KS | Faux positifs (KS ultra-sensible sur gros n) |
+| Confondre significativité et ampleur | On alerte sur un écart réel mais négligeable |
 | Bins recalculés sur la prod | PSI non comparable (bins doivent venir de la référence) |
 | Chi² sans aligner les modalités | Erreur de dimension de la table |
+| Chi² sur des modalités très rares | Effectifs attendus trop faibles, test peu fiable |
+| Traiter 0.25 comme une frontière absolue | Faux tranchant : 0.24 et 0.26 disent la même chose |
 | Regarder une feature à la fois sans synthèse | On rate la vue d'ensemble |
 
 | Symptôme | Cause probable |
@@ -88,7 +123,9 @@ Sur `reference_set.csv` vs `prod_3months.csv` :
 ## Vérification (checklist apprenant)
 
 - [ ] Je calcule PSI + KS sur les numériques, Chi² sur les catégorielles.
-- [ ] Mon PSI gère le lissage anti-zéro (pas de `inf`).
+- [ ] Mon PSI gère le lissage anti-zéro **et renormalise** (pas de `inf`).
 - [ ] Les bins du PSI viennent de la **référence**.
+- [ ] Je distingue « détectable » (p-value) et « important » (ampleur).
+- [ ] Je traite les seuils PSI comme des **repères**, pas des frontières.
 - [ ] Je croise les méthodes au lieu de conclure sur une seule.
 - [ ] J'ai un tableau de synthèse avec un verdict par feature.
