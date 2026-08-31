@@ -9,8 +9,14 @@
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pytest -q tests            # vert dès le clone (certains tests se débloquent avec vos TODO)
 jupyter notebook notebooks/M6-B1_template.ipynb
 ```
+
+> Variante `uv` : `uv venv .venv && source .venv/bin/activate` puis
+> `uv pip install -r requirements.txt`.
+> Dépannage : `No module named pip` → vous êtes dans un venv créé par `uv`,
+> utilisez `uv pip install …` (pas `pip install`).
 
 Les **données sont fournies** dans `data/` : `reference_set.csv` (baseline),
 `prod_3months.csv` (3 mois de prod), `predictions_log.csv` (logs du modèle).
