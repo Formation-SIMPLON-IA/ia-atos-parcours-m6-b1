@@ -30,14 +30,18 @@ Les **données sont fournies** dans `data/` : `reference_set.csv` (baseline),
 | 3 | Analyse complète | `notebooks/M6-B1_template.ipynb` | `01`,`02`,`03` |
 | 4 | Diagnostic data vs concept drift | `diagnostic.md` | `02` |
 | 5 | Note de recommandation | `note_recommandation_TEMPLATE.md` | `04` |
-| 6 | Extension dashboard Grafana | `grafana/dashboards/pyrenex_drift_TEMPLATE.json` | `05` |
+| 6 | Extension dashboard Grafana (3 panels **live**) | `grafana/provisioning/dashboards/pyrenex_drift_TEMPLATE.json` | `05` |
+| 6⭐ | *(option)* publier le PSI a Prometheus sans nouveau service | `metrics/psi.prom` + compose + `prometheus.yml` | `05` |
 
 ## ✅ Réussite (rappel)
 
 - PSI/KS/Chi² sur **toutes** les features pertinentes.
 - Diagnostic **chiffré et tranché** (data drift vs concept drift — regarder l'AUC !).
 - Note **lisible Sophie Léger** (pas ML), chiffrée, décision tranchée.
-- Dashboard étendu **provisionné** sur la stack M5.
+- Dashboard étendu **provisionné** sur la stack M5 — dans
+  `grafana/provisioning/dashboards/` (**le seul dossier monté** par votre compose M5),
+  et **sans aucun panel « No data »** : PSI, KS, Chi² et F1-12-semaines sont des
+  mesures batch, leur place est le **notebook**. Votre README dit pourquoi en 2 lignes.
 - Notebook top→bottom, commits `Co-authored-by:`, **journal de bord**.
 
 ## 📚 Ressources
